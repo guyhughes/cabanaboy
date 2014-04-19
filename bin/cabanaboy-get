@@ -24,7 +24,7 @@ echo ""
 echo ""
 
 echo "Listing ${_SSH_HOST}:${_REMOTE_DIR}..."
-echo $( ssh ${_SSH_HOST} ls "${_REMOTE_DIR}" -FRc1 --color )
+echo $( ssh ${_SSH_HOST} ls "${_REMOTE_DIR}" -FRc --color )
 
 echo ""
 [[ -z $_TARGET ]] && read -erp "Specify the files to transfer (file globbing works in quotations)? " -i "*" _TARGET
@@ -37,7 +37,7 @@ echo "Shall I fetch with this command?"
 _MYCMD="rsync -chauvv --no-perms --no-g ${_SSH_HOST}:${_REMOTE_DIR}/${_TARGET} ${_DEST}"
 echo "# $_MYCMD"
 read -erp "[Y/n]" -n 1 -t 10 _YN
-if [[ $_YN != "n" ]] ; then
+if [[ x$_YN != "xn" ]] ; then
   _RESULT="$( ${_MYCMD} )"
 else
   exit 0
@@ -48,11 +48,11 @@ if [[ ! $_RESULT ]]; then
 else
   echo ""
   echo "Shall I delete the remote files I just fetched via rsync?"
-  _MYCMD="ssh ${_SSH_HOST}:${_TARGET} cd ${_REMOTE_DIR} && rm -ri ${_TARGET} "
+  _MYCMD="ssh ${_SSH_HOST}:${_REMOTE_DIR} \"cd ${_REMOTE_DIR} && rm -ri ${_TARGET}\" "
   echo "# $_MYCMD" 
   read -erp "[Y/n]" -n 1 -t 10 _YN
 
-  if [[ $_YN2 != "n" ]]; then
+  if [[ x$_YN != "xn" ]]; then
     echo $( ${_MYCMD} )
   else
     exit 0
