@@ -34,7 +34,7 @@ echo ""
 
 echo ""
 echo "Shall I fetch with this command?"
-_MYCMD="rsync -chauvv --no-perms --no-g ${_SSH_HOST}:${_REMOTE_DIR}/${_TARGET} ${_DEST}"
+_MYCMD="rsync -chauvvv --log-file=${_DEST}/`date -u +%Y%m%dT%H%m%SZ`.log --no-perms --no-g ${_SSH_HOST}:${_REMOTE_DIR}/${_TARGET} ${_DEST}"
 echo "# $_MYCMD"
 read -erp "[Y/n]" -n 1 -t 10 _YN
 if [[ x$_YN != "xn" ]] ; then
@@ -48,7 +48,7 @@ if [[ ! $_RESULT ]]; then
 else
   echo ""
   echo "Shall I delete the remote files I just fetched via rsync?"
-  _MYCMD="ssh ${_SSH_HOST}:${_REMOTE_DIR} \"cd ${_REMOTE_DIR} && rm -ri ${_TARGET}\" "
+  _MYCMD="ssh ${_SSH_HOST} \"cd ${_REMOTE_DIR} && rm -rf ${_TARGET}\" "
   echo "# $_MYCMD" 
   read -erp "[Y/n]" -n 1 -t 10 _YN
 
