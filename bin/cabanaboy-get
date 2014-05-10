@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+#TODO: rewrite in ruby or python (or something not terribly unreadable)
+
 _SCRIPT_RESIDENCE="$( cd "$( dirname "$0" )" && pwd )"
 
 echo "tree Fetch running..."
@@ -23,6 +25,8 @@ echo ""
 
 echo ""
 
+# TODO: add error check on ls
+
 echo "Listing ${_SSH_HOST}:${_REMOTE_DIR}..."
 echo $( ssh ${_SSH_HOST} ls "${_REMOTE_DIR}" -FRc --color )
 
@@ -37,7 +41,7 @@ echo "Shall I fetch with this command?"
 _MYCMD="rsync -chauvvv --log-file=${_DEST}/`date -u +%Y%m%dT%H%m%SZ`.log --no-perms --no-g ${_SSH_HOST}:${_REMOTE_DIR}/${_TARGET} ${_DEST}"
 echo "# $_MYCMD"
 read -erp "[Y/n]" -n 1 -t 10 _YN
-if [[ x$_YN != "xn" ]] ; then
+if [[ x$_YN == "xy" ]] ; then
   _RESULT="$( ${_MYCMD} )"
 else
   exit 0
@@ -48,11 +52,13 @@ if [[ ! $_RESULT ]]; then
 else
   echo ""
   echo "Shall I delete the remote files I just fetched via rsync?"
-  _MYCMD="ssh ${_SSH_HOST} \"cd ${_REMOTE_DIR} && rm -rf ${_TARGET}\" "
+  _MYCMD="ssh ${_SSH_HOST} \"rm -rf ${_REMOTE_DIR}/${_TARGET}\" "
   echo "# $_MYCMD" 
   read -erp "[Y/n]" -n 1 -t 10 _YN
 
-  if [[ x$_YN != "xn" ]]; then
+# TODO: check perms before attempting delete
+
+  if [[ x$_YN == "xy" ]]; then
     echo $( ${_MYCMD} )
   else
     exit 0
