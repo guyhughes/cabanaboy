@@ -1,0 +1,172 @@
+#!/usr/bin/env ruby
+
+require 'thor'     # Gem
+require 'psych'    # StdLib YAML
+require 'logger'   # StdLib
+require 'pathname' # StdLib
+
+class Cabanaboy < Thor
+  include Thor::Actions
+  DEFAULT_FIGTREE_DIR="#{ENV['XDG_CONFIG_HOME'] || ENV['HOME'] + '/.config' || '~/.config'}/cabanaboy"
+
+  class_option :verbose, :type => :boolean, :aliases => "-v"
+  class_option :debug, :type => :boolean, :aliases => "-d"
+  class_option :config, :type => :string, :aliases => "-f", :desc => "Use an alternative YAML config file."
+  def initialize(*args)
+    super
+    raise 'Dont\'t be an idiot. Excess privilege use violation.' unless Process.uid != 0
+
+    @log = Logger.new(STDOUT)
+    @log.datetime_format=("%Y%m%dT%H%M%S%Z")
+    if options[:debug]
+      @log.level = Logger::DEBUG
+      @log.info("Logger level set to DEBUG")
+    elsif options[:verbose]
+      @log.level = Logger::INFO
+      @log.info("Logger level set to INFO")
+    else
+      @log.level = Logger::WARN
+      @log.info("Logger level defaulting to WARN")
+    end
+
+    @log.debug("initalize: selecting config file")
+    sanityCheck=Proc.new { |file| file=Pathname::new(file).expand_path.to_path; @config_file=file if not defined? @config_file and File::file?(file) and File::readable?(file) }
+    sanityCheck.call(options[:config]) if defined? options[:config] and options[:config] =~ /[\/]/
+    sanityCheck.call(Pathname::new(DEFAULT_FIGTREE_DIR + "/" + options[:config] + ".yaml").expand_path.to_path) if options[:config].nil? ==false
+    sanityCheck.call(Pathname::new("./cabanaboy.yaml").expand_path.to_path)
+    sanityCheck.call("#{DEFAULT_FIGTREE_DIR}/cabanaboy.yaml")
+
+    unless defined? @config_file
+      say "No configuration file found." 
+      self.createConfig
+    end
+    File::chmod(0744,@config_file) if not File::stat(@config_file).mode =~ /.*744/
+
+    @log.debug("initialize: loading YAML config file #{@config_file}")
+    begin
+      @config = Psych.load_file(@config_file)
+      @log.debug("using #{@config_file} \n#{@config.inspect} ")
+    rescue Psych::SyntaxErrr => ex
+      @log.error("There's a syntax error in the YAML file #{ex.file}:\n#{ex.message}")
+    end
+    @log.error("Configuration empty or YAML file corrupt. Available data is:\n #{@config.inspect}") if @config.empty?
+
+    self.crosscheck
+
+  end
+
+  no_tasks do
+  desc 'crosscheck', "Perform sanity crosschecks of environment and YAML configuration."
+  def crosscheck()
+    # ruby > 2.1
+    @log.debug("crosscheck: ruby > 2.1")
+    if not RUBY_VERSION >= "2.1.0"
+      @log.error("I need ruby >= 2.1.0 but you're running me on #{RUBY_VERSION}. #sadface ")
+      Kernel.exit(-1) 
+    end
+
+    # git > 2
+    @log.debug("crosscheck: rsync > 3.1")
+    if not system("command -v rsync > /dev/null 2>&1") 
+      @log.error("I need rsync >= 3.1, but I couldn't find any git at all. #tragedy")
+
+    elsif %{rsync--version}.match(/[0-9\.]{3}/).to_s >= "3.1"
+      @log.error("I need rsync >= 3.1, but I found " + %x{rsync --version}.match(/[0-9prcb\.]{3,11}/).to_s)
+    end
+
+  end
+  def self.source_root
+    File.dirname(__FILE__)
+  end 
+  end
+
+  desc :createConfig, "Create a configuration file interactively"
+  def createConfig
+    puts "Creating configuration..."
+
+    fig = Hash.new
+    fig['remote'] = Hash.new
+    fig['local'] = Hash.new
+
+    puts "\nSpecify the command to use at start (establish stunnel or start vm): "
+    fig['remote']['start']=STDIN.gets.chomp
+    
+    puts "\nSpecify the command to use at stop (establish stunnel or start vm): "
+    fig['remote']['stop']=STDIN.gets.chomp
+    
+    puts "\nSpecify SSH [user@]host: "
+    fig['remote']['host']=STDIN.gets.chomp
+
+    puts "\nSpecify the top-level remote directory to fetch from: "
+    fig['remote']['dir']=Pathname::new(STDIN.gets.chomp).dirname.to_path  # do not expand, its remote
+
+    puts "\nSpecify the local destination directory: "
+    fig['local']['dir']=Pathname::new(STDIN.gets.chomp).expand_path.dirname.to_path
+    Dir::mkdir(fig['local']['dir']) unless Dir::exists?(fig['local']['dir'])
+
+    begin
+      puts "\nSpecify a name for this configuration: "
+      figtree=STDIN.gets.chomp
+      figtree_regex = '^[a-zA-z0-9]+$'
+      raise Exception.new("Name must match #{figtree_regex}.") unless Regexp::new(figtree_regex).match(figtree)
+    rescue Exception => ex
+      @log.warn(ex.message)
+      retry if yes?("Retry?")
+        
+    end
+
+    Dir::mkdir(DEFAULT_FIGTREE_DIR) unless Dir::exists?(DEFAULT_FIGTREE_DIR)
+    @config_file="#{DEFAULT_FIGTREE_DIR}/#{figtree}.yaml"
+    File::open(@config_file,'w') { |file| file.write(Psych::dump(fig)) }
+    @config = Psych::dump(fig)
+  end
+
+  method_option :magic => false, :type => :bool, :desc => 'Always ask for a magic pattern'
+  desc :get, 'Get file(s) from the cabanaboy host.'
+  def get(manual_pattern=nil)
+    # List remote files 
+    system("ssh #{@config['remote']['host']} 'ls -Ra #{@config['remote']['dir']}'")
+
+    if not manual_pattern.nil? then
+      puts "\nYou specified a manual pattern: #{manual_pattern}"
+      if options[:magic] == true or yes?("\nDo you want to specify a magic pattern too?")
+        magic = true
+      else
+        magic = false
+      end
+    end
+
+    # ask for pattern
+    if options[:magic] == true || manual_pattern.nil? == true  || (defined? magic and magic == true)
+      puts "\nSpecify a magic pattern: "
+      magic_pattern = STDIN.gets.chomp
+    else
+      magic_pattern = nil
+    end
+    
+    # Build rsync query
+    cmd = "rsync "
+    cmd << " -auch -vv --no-p --no-g --progress"  #  a before Z (no perms, no g)
+    cmd << " --filter='- *.part'"
+    cmd << " --filter='- *.nfo'"
+    cmd << " --filter='+ */'"
+    cmd << " --filter='+ **/*#{magic_pattern}*'" if magic_pattern.nil? == false
+    cmd << " --filter='+ #{manual_pattern}'" if manual_pattern.nil? == false
+    cmd << " --filter='- *'"
+    cmd += "\s" + @config['remote']['host'].to_s + ":" + @config['remote']['dir'].to_s + "\s" + @config['local']['dir'].to_s
+    @log.info(cmd)
+    %x{#{cmd}}
+  end
+
+  desc :vstart, "Perform start command per trusted YAML file"
+  def vstart
+    system("#{@config['remote']['start']}")
+  end
+
+  desc :vstop, "Perform stop command per trusted YAML file"
+  def vstop
+    system("#{@config['remote']['stop']}")
+  end
+
+end
+Cabanaboy.start
