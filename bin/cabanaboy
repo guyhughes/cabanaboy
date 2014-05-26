@@ -146,7 +146,10 @@ class Cabanaboy < Thor
     
     # Build rsync query
     cmd = "rsync "
-    cmd << " -auch -vv --no-p --no-g --progress"  #  a before Z (no perms, no g)
+    cmd << " -auch -v --no-p --no-g --progress"  #  a before Z (no perms, no g)
+    cmd << " -v" if options[:verbose]
+    cmd << " -vv" if options[:debug]
+    cmd << " --log-file='#{DEFAULT_FIGTREE_DIR}/rsync-#{self.timestamp}.log'"
     cmd << " --filter='- *.part'"
     cmd << " --filter='- *.nfo'"
     cmd << " --filter='+ */'"
@@ -155,7 +158,7 @@ class Cabanaboy < Thor
     cmd << " --filter='- *'"
     cmd += "\s" + @config['remote']['host'].to_s + ":" + @config['remote']['dir'].to_s + "\s" + @config['local']['dir'].to_s
     @log.info(cmd)
-    %x{#{cmd}}
+    system("#{cmd}")
   end
 
   desc :vstart, "Perform start command per trusted YAML file"
@@ -168,5 +171,15 @@ class Cabanaboy < Thor
     system("#{@config['remote']['stop']}")
   end
 
+  desc :vkill, "Perform kill command per trusted YAML file"
+  def vkill
+    system("#{@config['remote']['kill']}")
+  end
+
+  no_tasks do
+  def timestamp
+    return Time.now.utc.strftime("%Y%m%dT%H%M%SZ")
+  end
+  end
 end
 Cabanaboy.start
