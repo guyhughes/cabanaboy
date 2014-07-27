@@ -1,6 +1,6 @@
 ---
 remote:
-  start: VBoxHeadless -s cabanaboy -v off; /home/nasusername/bin/key th; keys; echo 'waiting 60 seconds...';  sleep 1m; host-utility &
+  start: VBoxHeadless -s cabanaboy -v off
   stop: ssh cabanaboy 'sudo shutdown'; sleep 1; killall host-utility
   kill: vboxmanage controlvm cabanaboy poweroff
   host: cabanaboy

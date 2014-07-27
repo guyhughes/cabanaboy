@@ -146,7 +146,7 @@ class Cabanaboy < Thor
     
     # Build rsync query
     cmd = "rsync "
-    cmd << " -auch -v --no-p --no-g --progress"  #  a before Z (no perms, no g)
+    cmd << " -auchP -v --no-p --no-g"  #  a before Z (no perms, no g)
     cmd << " -v" if options[:verbose]
     cmd << " -vv" if options[:debug]
     cmd << " --log-file='#{DEFAULT_FIGTREE_DIR}/rsync-#{self.timestamp}.log'"
@@ -173,7 +173,7 @@ class Cabanaboy < Thor
 
   desc :vkill, "Perform kill command per trusted YAML file"
   def vkill
-    system("#{@config['remote']['kill']}")
+    system("#{@config['remote']['stop']}")
   end
 
   no_tasks do
