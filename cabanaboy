@@ -61,17 +61,15 @@ class Cabanaboy < Thor
   no_tasks do
   desc 'crosscheck', "Perform sanity crosschecks of environment and YAML configuration."
   def crosscheck()
-    # ruby > 2.1
     @log.debug("crosscheck: ruby > 2.1")
     if not RUBY_VERSION >= "2.1.0"
       @log.error("I need ruby >= 2.1.0 but you're running me on #{RUBY_VERSION}. #sadface ")
       Kernel.exit(-1) 
     end
 
-    # git > 2
     @log.debug("crosscheck: rsync > 3.1")
     if not system("command -v rsync > /dev/null 2>&1") 
-      @log.error("I need rsync >= 3.1, but I couldn't find any git at all. #tragedy")
+      @log.error("I need rsync >= 3.1, but I couldn't find any rsync at all. #tragedy")
 
     elsif %{rsync--version}.match(/[0-9\.]{3}/).to_s >= "3.1"
       @log.error("I need rsync >= 3.1, but I found " + %x{rsync --version}.match(/[0-9prcb\.]{3,11}/).to_s)
