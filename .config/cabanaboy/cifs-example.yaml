@@ -1,0 +1,10 @@
+---
+remote:
+  start: sudo mount.cifs //192.168.0.1/share /mnt/sharevolume -o username=nas1,password=nas1password
+  stop: sudo umount -t cifs -l /mnt/sharevolume 
+  kill: sudo umount -t cifs -l -a 
+  host: false 
+  dir: "/mnt/sharevolume/"
+local:
+  dir: "~/import/"
+checksum: false

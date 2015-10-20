@@ -11,7 +11,7 @@ class Cabanaboy < Thor
 
   class_option :verbose, :type => :boolean, :aliases => "-v"
   class_option :debug, :type => :boolean, :aliases => "-d"
-  class_option :config, :type => :string, :aliases => "-f", :desc => "Use an alternative YAML config file."
+  class_option :config, :type => :string, :aliases => "-c", :desc => "Use an alternative YAML config file."
   def initialize(*args)
     super
     raise 'Dont\'t be an idiot. Excess privilege use violation.' unless Process.uid != 0
@@ -36,20 +36,23 @@ class Cabanaboy < Thor
     sanityCheck.call(Pathname::new("./cabanaboy.yaml").expand_path.to_path)
     sanityCheck.call("#{DEFAULT_FIGTREE_DIR}/cabanaboy.yaml")
 
-    unless defined? @config_file
+    if not defined? @config_file
       say "No configuration file found." 
-      self.createConfig
-    end
-    File::chmod(0744,@config_file) if not File::stat(@config_file).mode =~ /.*744/
+      #self.createConfig # do not create the config automatically
+    else
 
-    @log.debug("initialize: loading YAML config file #{@config_file}")
-    begin
-      @config = Psych.load_file(@config_file)
-      @log.debug("using #{@config_file} \n#{@config.inspect} ")
-    rescue Psych::SyntaxErrr => ex
-      @log.error("There's a syntax error in the YAML file #{ex.file}:\n#{ex.message}")
+      File::chmod(0700,@config_file) if not File::stat(@config_file).mode =~ /.*700/
+
+      @log.debug("initialize: loading YAML config file #{@config_file}")
+      begin
+        @config = Psych.load_file(@config_file)
+        @log.debug("using #{@config_file} \n#{@config.inspect} ")
+      rescue Psych::SyntaxErrr => ex
+        @log.error("There's a syntax error in the YAML file #{ex.file}:\n#{ex.message}")
+      end
+      @log.error("Configuration empty or YAML file corrupt. Available data is:\n #{@config.inspect}") if @config.empty?
+
     end
-    @log.error("Configuration empty or YAML file corrupt. Available data is:\n #{@config.inspect}") if @config.empty?
 
     self.crosscheck
 
@@ -125,7 +128,11 @@ class Cabanaboy < Thor
   desc :get, 'Get file(s) from the cabanaboy host.'
   def get(manual_pattern=nil)
     # List remote files 
-    system("ssh #{@config['remote']['host']} 'ls -Ra #{@config['remote']['dir']}'")
+    if not defined? @config['remote']['host'] or @config['remote']['host'].empty? then
+      system("ls -Ra #{@config['remote']['dir']}")
+    else
+      system("ssh #{@config['remote']['host']} 'ls -Ra #{@config['remote']['dir']}'")
+    end
 
     if not manual_pattern.nil? then
       puts "\nYou specified a manual pattern: #{manual_pattern}"
@@ -146,7 +153,8 @@ class Cabanaboy < Thor
     
     # Build rsync query
     cmd = "rsync "
-    cmd << " -auchP -v --no-p --no-g"  #  a before Z (no perms, no g)
+    cmd << " -auhP -v --no-p --no-g"  #  a before Z (no perms, no g)
+    cmd << " -c" unless defined? @config['checksums'] and not @config['checksums']
     cmd << " -v" if options[:verbose]
     cmd << " -vv" if options[:debug]
     cmd << " --log-file='#{DEFAULT_FIGTREE_DIR}/rsync-#{self.timestamp}.log'"
@@ -156,23 +164,26 @@ class Cabanaboy < Thor
     cmd << " --filter='+ **/*#{magic_pattern}*'" if magic_pattern.nil? == false
     cmd << " --filter='+ #{manual_pattern}'" if manual_pattern.nil? == false
     cmd << " --filter='- *'"
-    cmd += "\s" + @config['remote']['host'].to_s + ":" + @config['remote']['dir'].to_s + "\s" + @config['local']['dir'].to_s
+    cmd += "\s" 
+    cmd += @config['remote']['host'].to_s + ":" unless @config['remote']['host'] === false
+    cmd += @config['remote']['dir'].to_s + "\s" + @config['local']['dir'].to_s
+
     @log.info(cmd)
     system("#{cmd}")
   end
 
-  desc :vstart, "Perform start command per trusted YAML file"
-  def vstart
+  desc :on, "Perform start command per trusted YAML file"
+  def on
     system("#{@config['remote']['start']}")
   end
 
-  desc :vstop, "Perform stop command per trusted YAML file"
-  def vstop
+  desc :off, "Perform stop command per trusted YAML file"
+  def off
     system("#{@config['remote']['stop']}")
   end
 
-  desc :vkill, "Perform kill command per trusted YAML file"
-  def vkill
+  desc :kill, "Perform kill command per trusted YAML file"
+  def kill
     system("#{@config['remote']['stop']}")
   end
 
