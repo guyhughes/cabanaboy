@@ -184,7 +184,7 @@ class Cabanaboy < Thor
 
   desc :kill, "Perform kill command per trusted YAML file"
   def kill
-    system("#{@config['remote']['stop']}")
+    system("#{@config['remote']['kill']}")
   end
 
   no_tasks do
