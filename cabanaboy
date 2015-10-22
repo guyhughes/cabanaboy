@@ -50,7 +50,7 @@ class Cabanaboy < Thor
       rescue Psych::SyntaxErrr => ex
         @log.error("There's a syntax error in the YAML file #{ex.file}:\n#{ex.message}")
       end
-      @log.error("Configuration empty or YAML file corrupt. Available data is:\n #{@config.inspect}") if @config.empty?
+      @log.error("Configuration empty or YAML file corrupt. Available data is:\n #{@config.inspect}") if @config.isEmpty?
 
     end
 
