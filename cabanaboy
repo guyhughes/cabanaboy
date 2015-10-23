@@ -50,7 +50,7 @@ class Cabanaboy < Thor
       rescue Psych::SyntaxErrr => ex
         @log.error("There's a syntax error in the YAML file #{ex.file}:\n#{ex.message}")
       end
-      @log.error("Configuration empty or YAML file corrupt. Available data is:\n #{@config.inspect}") if @config.isEmpty?
+      @log.error("Configuration empty or YAML file corrupt. Available data is:\n #{@config.inspect}") if @config.empty?
 
     end
 
@@ -126,7 +126,7 @@ class Cabanaboy < Thor
   desc :get, 'Get file(s) from the cabanaboy host.'
   def get(manual_pattern=nil)
     # List remote files 
-    if not defined? @config['remote']['host'] or @config['remote']['host'].empty? then
+    if not defined? @config['remote']['host'] or @config['remote']['host'] === false then
       system("ls -Ra #{@config['remote']['dir']}")
     else
       system("ssh #{@config['remote']['host']} 'ls -Ra #{@config['remote']['dir']}'")
