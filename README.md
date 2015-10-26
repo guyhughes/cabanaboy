@@ -27,7 +27,7 @@ Options:
 
 Config Files
 -------------
-Check out the [sample config files](https://github.com/ypcrts/cabanaboy/tree/master/.config/cabanaboy]). They're dead simple.
+Check out the [sample config files](https://github.com/ypcrts/cabanaboy/tree/master/.config/cabanaboy). They're dead simple.
 
 The default configuration file is `${dir}/cabanaboy/cabanaboy.yaml`, where `${dir}` is:
  - `XDG_CONFIG_HOME` if it is set
