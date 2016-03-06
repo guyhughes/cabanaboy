@@ -151,16 +151,17 @@ class Cabanaboy < Thor
     
     # Build rsync query
     cmd = "rsync "
-    cmd << " -auhP -v --no-p --no-g"  #  a before Z (no perms, no g)
+    cmd << " -zauhP -v --no-p --no-g"  #  a before Z (no perms, no g)
     cmd << " -c" unless defined? @config['checksums'] and not @config['checksums']
     cmd << " -v" if options[:verbose]
     cmd << " -vv" if options[:debug]
     cmd << " --log-file='#{DEFAULT_FIGTREE_DIR}/rsync-#{self.timestamp}.log'"
     cmd << " --filter='- *.part'"
     cmd << " --filter='- *.nfo'"
-    cmd << " --filter='+ */'"
-    cmd << " --filter='+ **/*#{magic_pattern}*'" if magic_pattern.nil? == false
-    cmd << " --filter='+ #{manual_pattern}'" if manual_pattern.nil? == false
+    # cmd << " --filter='+ */'"
+    cmd << " --filter='+ **/*#{magic_pattern}*'" if magic_pattern.nil? === false
+    cmd << " --filter='+ **/*#{magic_pattern}*/***'" if magic_pattern.nil? === false
+    cmd << " --filter='+ #{manual_pattern}'" if manual_pattern.nil? === false
     cmd << " --filter='- *'"
     cmd += "\s" 
     cmd += @config['remote']['host'].to_s + ":" unless @config['remote']['host'] === false
